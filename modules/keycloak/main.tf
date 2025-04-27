@@ -215,7 +215,7 @@ resource "kubernetes_ingress_v1" "keycloak_ingress" {
       "nginx.ingress.kubernetes.io/backend-protocol"        = "HTTPS"
       "nginx.ingress.kubernetes.io/ssl-redirect"            = "true"
       "nginx.ingress.kubernetes.io/force-ssl-redirect"      = "true"
-      "external-dns.alpha.kubernetes.io/hostname"           = "keycloak.${var.base_domain}"
+      "external-dns.alpha.kubernetes.io/hostname"           = "auth.${var.base_domain}"
       "nginx.ingress.kubernetes.io/proxy-buffer-size"       = "128k"
       "nginx.ingress.kubernetes.io/proxy-buffers"           = "4 256k"
       "nginx.ingress.kubernetes.io/proxy-busy-buffers-size" = "256k"
