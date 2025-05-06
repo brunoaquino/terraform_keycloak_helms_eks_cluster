@@ -45,6 +45,12 @@ module "keycloak" {
   admin_password           = var.keycloak_admin_password
   cert_manager_environment = var.cert_manager_letsencrypt_server
 
+  # Configurações de recursos
+  resources_requests_cpu    = var.keycloak_resources_requests_cpu
+  resources_requests_memory = var.keycloak_resources_requests_memory
+  resources_limits_cpu      = var.keycloak_resources_limits_cpu
+  resources_limits_memory   = var.keycloak_resources_limits_memory
+
   # Configurações do PostgreSQL externo
   external_db_enabled  = var.keycloak_external_db_enabled
   external_db_host     = var.keycloak_external_db_host

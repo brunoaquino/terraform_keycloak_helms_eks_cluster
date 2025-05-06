@@ -18,9 +18,33 @@ Este projeto Terraform configura o Keycloak em um cluster Amazon EKS, fornecendo
 
 - Keycloak Chart: 24.6.1 (Bitnami)
 - Keycloak: 26.2.1
+- PostgreSQL: 16.x (compatível com Amazon RDS)
 - cert-manager: v1.10.0 ou superior (já instalado)
 - NGINX Ingress Controller: v1.5.0 ou superior (já instalado)
 - External-DNS: v0.12.0 ou superior (já instalado)
+- AWS EKS: 1.27 ou superior
+- Terraform: >= 1.0.0
+- Kubernetes: >= 1.20
+
+## Requisitos de Infraestrutura
+
+### Banco de Dados PostgreSQL
+
+- Versão: PostgreSQL 16.x
+- Instância recomendada na AWS: db.t3.medium (mínimo)
+- Armazenamento mínimo: 20GB
+- Configuração Multi-AZ recomendada para produção
+- Parâmetros recomendados:
+  - max_connections: 200
+  - shared_buffers: 256MB
+  - effective_cache_size: 768MB
+
+### EKS Cluster
+
+- Versão: 1.27 ou superior
+- Tamanho mínimo dos nodes: t3.medium
+- Número mínimo de nodes: 2
+- Autoscaling recomendado para ambientes de produção
 
 ## Configuração do Ambiente
 
@@ -65,6 +89,20 @@ keycloak_chart_version  = "24.6.1"
 keycloak_admin_password = "sua-senha-segura" # Mude para uma senha forte
 keycloak_hostname       = "keycloak.seu-dominio.com"
 keycloak_enable_tls     = true
+
+# Recursos do Keycloak
+keycloak_resources_requests_cpu    = "500m"  # Ajuste conforme necessidade
+keycloak_resources_requests_memory = "1Gi"   # Ajuste conforme necessidade
+keycloak_resources_limits_cpu      = "1000m" # Ajuste conforme necessidade
+keycloak_resources_limits_memory   = "2Gi"   # Ajuste conforme necessidade
+
+# PostgreSQL Externo (AWS RDS ou outro)
+keycloak_external_db_enabled  = true
+keycloak_external_db_host     = "seu-postgresql.region.rds.amazonaws.com"
+keycloak_external_db_port     = 5432
+keycloak_external_db_database = "keycloak"
+keycloak_external_db_username = "keycloak"
+keycloak_external_db_password = "senha-segura-do-banco"
 ```
 
 ### 2. Inicializar e Aplicar o Terraform
@@ -250,224 +288,53 @@ export default function Component() {
 // Em _app.js
 import { SessionProvider } from "next-auth/react";
 
-export default function App({ Component, pageProps }) {
+function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   return (
-    <SessionProvider session={pageProps.session}>
+    <SessionProvider session={session}>
       <Component {...pageProps} />
     </SessionProvider>
   );
 }
 
-// Em páginas protegidas
-import { getSession } from "next-auth/react";
-
-export async function getServerSideProps(context) {
-  const session = await getSession(context);
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: "/api/auth/signin",
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: { session },
-  };
-}
+export default MyApp;
 ```
 
-## Integração com NestJS (Backend)
+## Monitoramento e Manutenção
 
-### Instalação dos pacotes necessários
+### Logs do Keycloak
+
+Para verificar os logs do Keycloak:
 
 ```bash
-npm install @nestjs/passport passport-jwt jwks-rsa
-# ou
-yarn add @nestjs/passport passport-jwt jwks-rsa
+kubectl logs -f -n keycloak deploy/keycloak
 ```
 
-### Configuração do módulo de autenticação
+### Backup do Banco de Dados
 
-```typescript
-// auth.module.ts
-import { Module } from "@nestjs/common";
-import { PassportModule } from "@nestjs/passport";
-import { JwtStrategy } from "./jwt.strategy";
+Recomenda-se configurar backups regulares do banco de dados PostgreSQL. Para o Amazon RDS, você pode ativar snapshots automáticos.
 
-@Module({
-  imports: [PassportModule.register({ defaultStrategy: "jwt" })],
-  providers: [JwtStrategy],
-  exports: [PassportModule],
-})
-export class AuthModule {}
+### Atualização do Keycloak
+
+Para atualizar o Keycloak para uma nova versão, atualize a variável `keycloak_chart_version` no arquivo terraform.tfvars e execute:
+
+```bash
+terraform apply
 ```
 
-### Implementação da estratégia JWT
+## Segurança
 
-```typescript
-// jwt.strategy.ts
-import { Injectable } from "@nestjs/common";
-import { PassportStrategy } from "@nestjs/passport";
-import { ExtractJwt, Strategy } from "passport-jwt";
-import * as jwksRsa from "jwks-rsa";
+- Recomenda-se alterar a senha de administrador após o primeiro login
+- Configure TLS para todas as comunicações
+- Utilize grupos e papéis para gerenciar permissões
+- Considere a integração com um provedor de identidade existente se necessário (LDAP, SAML, etc.)
+- Implemente monitoramento de segurança e auditorias regulares
+- Mantenha o Keycloak e PostgreSQL atualizados com as últimas versões de segurança
 
-@Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      audience: "backend-api", // Client ID do backend no Keycloak
-      issuer: process.env.KEYCLOAK_ISSUER,
-      algorithms: ["RS256"],
-      secretOrKeyProvider: jwksRsa.passportJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/certs`,
-      }),
-    });
-  }
+## Resolução de Problemas
 
-  async validate(payload: any) {
-    // Retorne o usuário a partir do payload
-    return {
-      id: payload.sub,
-      username: payload.preferred_username,
-      email: payload.email,
-      roles: payload.realm_access?.roles || [],
-    };
-  }
-}
-```
+### Problemas comuns:
 
-### Configuração das variáveis de ambiente (.env)
-
-```
-KEYCLOAK_ISSUER=https://keycloak.seu-dominio.com/realms/app-realm
-```
-
-### Uso dos Guards de autenticação
-
-```typescript
-// Em controllers que precisam de autenticação
-import { Controller, Get, UseGuards } from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-
-@Controller("api/protected")
-export class ProtectedController {
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  getProtectedData() {
-    return { message: "This is protected data" };
-  }
-}
-```
-
-### Criação de um Guard personalizado para verificar roles
-
-```typescript
-// roles.guard.ts
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>("roles", [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (!requiredRoles) {
-      return true;
-    }
-
-    const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user.roles?.includes(role));
-  }
-}
-
-// Decorador para definir roles
-// roles.decorator.ts
-import { SetMetadata } from "@nestjs/common";
-
-export const Roles = (...roles: string[]) => SetMetadata("roles", roles);
-
-// Uso em controllers
-@Controller("api/admin")
-export class AdminController {
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin")
-  @Get()
-  getAdminData() {
-    return { message: "Admin data" };
-  }
-}
-```
-
-## Boas Práticas de Segurança
-
-### 1. Gerenciamento de Tokens
-
-- Configure tempos de expiração adequados para os tokens (30min-1h para access tokens)
-- Implemente renovação automática de tokens usando refresh tokens
-- Armazene tokens de forma segura (HttpOnly cookies, sessionStorage)
-
-### 2. Proteção contra CSRF
-
-Ative a proteção CSRF no Keycloak:
-
-1. No painel do Keycloak, acesse o realm
-2. Vá para Realm Settings > Security Defenses
-3. Configure o CSRF
-
-### 3. Configuração de CORS
-
-Configure CORS corretamente tanto no Keycloak quanto na sua aplicação:
-
-No Keycloak:
-
-1. No painel do Keycloak, acesse o realm
-2. Vá para Realm Settings > Security Defenses > CORS
-3. Adicione as origens permitidas
-
-### 4. Uso de HTTPS
-
-Sempre use HTTPS em todos os endpoints. O Keycloak foi configurado com TLS para garantir comunicações seguras.
-
-### 5. Escopo de Tokens
-
-Defina escopos adequados para as aplicações, seguindo o princípio do privilégio mínimo.
-
-## Solução de Problemas Comuns
-
-### 1. Problemas de DNS e Propagação
-
-Se ocorrerem erros de DNS (como NXDOMAIN), verifique:
-
-- A configuração do External-DNS no cluster
-- A zona hospedada correta no Route53
-- Propagação do DNS (pode levar até 48h, mas geralmente é muito mais rápido)
-
-### 2. Problemas com o Ingress
-
-Se o Keycloak estiver rodando mas não acessível externamente:
-
-- Verifique as anotações do Ingress para garantir que estão corretas
-- Confirme que o certificado SSL está válido
-- Verifique os logs do Nginx Ingress Controller
-
-### 3. Problemas de Autenticação
-
-Se houver problemas ao autenticar aplicações com Keycloak:
-
-- Confirme que as configurações de redirecionamento estão corretas
-- Verifique se os secrets de cliente estão configurados corretamente
-- Analise os logs do Keycloak para mensagens de erro detalhadas
+1. **Não é possível acessar o Keycloak**: Verifique o Ingress, certificados TLS e resolução DNS
+2. **Erros de banco de dados**: Verifique as credenciais e conectividade com o PostgreSQL
+3. **Problemas de desempenho**: Ajuste os recursos do Keycloak e PostgreSQL conforme necessário
+4. **Erros de autenticação**: Verifique a configuração dos clientes e redirects

@@ -72,6 +72,31 @@ variable "admin_password" {
   sensitive   = true
 }
 
+# Variáveis para recursos (CPU e memória)
+variable "resources_requests_cpu" {
+  description = "Requisição de CPU para o Keycloak"
+  type        = string
+  default     = "500m"
+}
+
+variable "resources_requests_memory" {
+  description = "Requisição de memória para o Keycloak"
+  type        = string
+  default     = "1Gi"
+}
+
+variable "resources_limits_cpu" {
+  description = "Limite de CPU para o Keycloak"
+  type        = string
+  default     = "1000m"
+}
+
+variable "resources_limits_memory" {
+  description = "Limite de memória para o Keycloak"
+  type        = string
+  default     = "2Gi"
+}
+
 variable "external_db_enabled" {
   description = "Indica se deve usar um banco de dados PostgreSQL externo"
   type        = bool

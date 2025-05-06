@@ -112,22 +112,22 @@ resource "helm_release" "keycloak" {
   # Configurações de recursos
   set {
     name  = "resources.requests.cpu"
-    value = "500m"
+    value = var.resources_requests_cpu
   }
 
   set {
     name  = "resources.requests.memory"
-    value = "1Gi"
+    value = var.resources_requests_memory
   }
 
   set {
     name  = "resources.limits.cpu"
-    value = "1000m"
+    value = var.resources_limits_cpu
   }
 
   set {
     name  = "resources.limits.memory"
-    value = "2Gi"
+    value = var.resources_limits_memory
   }
 
   # Configurações do banco de dados

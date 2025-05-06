@@ -85,6 +85,31 @@ variable "keycloak_admin_password" {
   sensitive   = true
 }
 
+# Variáveis para recursos (CPU e memória) do Keycloak
+variable "keycloak_resources_requests_cpu" {
+  description = "Requisição de CPU para o Keycloak"
+  type        = string
+  default     = "500m"
+}
+
+variable "keycloak_resources_requests_memory" {
+  description = "Requisição de memória para o Keycloak"
+  type        = string
+  default     = "1Gi"
+}
+
+variable "keycloak_resources_limits_cpu" {
+  description = "Limite de CPU para o Keycloak"
+  type        = string
+  default     = "1000m"
+}
+
+variable "keycloak_resources_limits_memory" {
+  description = "Limite de memória para o Keycloak"
+  type        = string
+  default     = "2Gi"
+}
+
 # Variáveis para o PostgreSQL externo
 variable "keycloak_external_db_enabled" {
   description = "Indica se deve usar um banco de dados PostgreSQL externo"
