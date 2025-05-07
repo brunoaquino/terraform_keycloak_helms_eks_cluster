@@ -87,7 +87,7 @@ cert_manager_letsencrypt_server = "prod"
 keycloak_namespace      = "keycloak"
 keycloak_chart_version  = "24.6.1"
 keycloak_admin_password = "sua-senha-segura" # Mude para uma senha forte
-keycloak_hostname       = "keycloak.seu-dominio.com"
+keycloak_hostname       = "auth.seu-dominio.com"
 keycloak_enable_tls     = true
 
 # Recursos do Keycloak
@@ -119,7 +119,7 @@ terraform apply
 Após a instalação, acesse o Keycloak através da URL:
 
 ```
-https://keycloak.seu-dominio.com
+https://auth.seu-dominio.com
 ```
 
 ### Credenciais de Administrador
@@ -133,7 +133,7 @@ As credenciais iniciais para o administrador do Keycloak são:
 
 ### 1. Criação de um Realm
 
-Um Realm no Keycloak é um conceito que define um domínio protegido pelo Keycloak. Ele contém clientes, usuários, funções, grupos, etc.
+Um Realm no Keycloak é um conceito que define um domínio protegido pelo auth. Ele contém clientes, usuários, funções, grupos, etc.
 
 1. Faça login na interface administrativa do Keycloak
 2. Clique em "Create Realm"
@@ -251,7 +251,7 @@ export default NextAuth({
 ```
 KEYCLOAK_CLIENT_ID=frontend-app
 KEYCLOAK_CLIENT_SECRET=seu-client-secret
-KEYCLOAK_ISSUER=https://keycloak.seu-dominio.com/realms/app-realm
+KEYCLOAK_ISSUER=https://auth.seu-dominio.com/realms/app-realm
 NEXTAUTH_URL=https://seu-frontend.com
 NEXTAUTH_SECRET=sua-chave-secreta-gerada-aleatoriamente
 ```
@@ -495,11 +495,11 @@ yarn add @react-keycloak/web keycloak-js
 2. Configure o Keycloak no seu aplicativo React:
 
 ```typescript
-// src/keycloak.ts
+// src/auth.ts
 import Keycloak from "keycloak-js";
 
 const keycloakConfig = {
-  url: "https://keycloak.seu-dominio.com",
+  url: "https://auth.seu-dominio.com",
   realm: "seu-realm",
   clientId: "react-app",
 };
@@ -536,11 +536,11 @@ function Login() {
 
   return (
     <div>
-      {!keycloak.authenticated && (
-        <button onClick={() => keycloak.login()}>Login</button>
+      {!auth.authenticated && (
+        <button onClick={() => auth.login()}>Login</button>
       )}
-      {keycloak.authenticated && (
-        <button onClick={() => keycloak.logout()}>Logout</button>
+      {auth.authenticated && (
+        <button onClick={() => auth.logout()}>Logout</button>
       )}
     </div>
   );
@@ -584,7 +584,7 @@ yarn add @nestjs/passport passport passport-keycloak-bearer
 2. Configure a estratégia de autenticação:
 
 ```typescript
-// src/auth/keycloak.strategy.ts
+// src/auth/auth.strategy.ts
 import { Injectable } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-keycloak-bearer";
@@ -594,7 +594,7 @@ export class KeycloakStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
       realm: "seu-realm",
-      "auth-server-url": "https://keycloak.seu-dominio.com",
+      "auth-server-url": "https://auth.seu-dominio.com",
       "ssl-required": "external",
       resource: "token-validator",
       "confidential-port": 0,
@@ -615,7 +615,7 @@ export class KeycloakStrategy extends PassportStrategy(Strategy) {
 // src/auth/auth.module.ts
 import { Module } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
-import { KeycloakStrategy } from "./keycloak.strategy";
+import { KeycloakStrategy } from "./auth.strategy";
 
 @Module({
   imports: [PassportModule],
