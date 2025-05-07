@@ -90,7 +90,7 @@ resource "helm_release" "keycloak" {
 
   set {
     name  = "extraStartupArgs"
-    value = "--hostname=keycloak.${var.base_domain} --proxy-headers=xforwarded --hostname-strict=false"
+    value = "--hostname=auth.${var.base_domain} --proxy-headers=xforwarded --hostname-strict=false"
   }
 
   # Configuração de TLS
@@ -232,7 +232,7 @@ resource "kubernetes_ingress_v1" "keycloak_ingress" {
 
   spec {
     rule {
-      host = "keycloak.${var.base_domain}"
+      host = "auth.${var.base_domain}"
       http {
         path {
           path      = "/"
