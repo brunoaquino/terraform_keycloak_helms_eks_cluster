@@ -299,6 +299,114 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
 export default MyApp;
 ```
 
+## Boas Práticas para Nomes de Grupos e Roles no Keycloak
+
+### Princípios Gerais
+
+- **Simplicidade e Clareza**: Os nomes devem ser autoexplicativos e facilmente compreensíveis por todos na organização.
+- **Consistência**: Adote um padrão de nomenclatura e mantenha-o em todo o sistema.
+- **Hierarquia**: Utilize estruturas hierárquicas quando apropriado para organizar melhor suas permissões.
+
+### Boas Práticas para Nomes de Grupos
+
+A utilização de grupos simplifica o processo de atribuição de permissões aos usuários. Em vez de gerenciar as permissões individualmente, organize os usuários em grupos e atribua as permissões adequadas a esses grupos.
+
+#### Padrões de Nomenclatura para Grupos
+
+1. **Baseado em Departamentos/Funções**:
+
+   - `Departamento_TI`
+   - `Departamento_RH`
+   - `Departamento_Financeiro`
+   - `Equipe_Desenvolvimento`
+
+2. **Baseado em Níveis de Acesso**:
+
+   - `Acesso_Administrativo`
+   - `Acesso_Gerencial`
+   - `Acesso_Operacional`
+
+3. **Prefixos Claros**:
+
+   - Use prefixos como `G_` para indicar grupos
+   - Exemplo: `G_Financeiro_Leitura`, `G_Financeiro_Completo`
+
+4. **Grupos Aninhados/Hierárquicos**:
+   - `TI/Desenvolvimento/Frontend`
+   - `TI/Desenvolvimento/Backend`
+   - `TI/Infraestrutura/Redes`
+
+### Boas Práticas para Nomes de Roles
+
+Roles identificam um tipo ou categoria de usuário. Admin, user, manager e employee são exemplos típicos que podem existir em uma organização.
+
+#### Padrões de Nomenclatura para Roles
+
+1. **Baseado em Ações**:
+
+   - `criar_usuario`
+   - `editar_usuario`
+   - `visualizar_usuario`
+   - `excluir_usuario`
+
+2. **Baseado em Recursos + Ações**:
+
+   - `usuario_criar`
+   - `usuario_editar`
+   - `usuario_visualizar`
+   - `usuario_excluir`
+   - `relatorio_gerar`
+   - `relatorio_visualizar`
+
+3. **Prefixos para Diferenciação**:
+
+   - Use prefixos como `R_` para roles
+   - Exemplo: `R_Admin`, `R_Gerente`, `R_Usuario`
+
+4. **Tipos de Roles**:
+   - **Roles Simples**: Para permissões diretas (ex: `visualizar_relatorio`)
+   - **Roles Compostas**: Para agrupar outras roles (ex: `gerente_relatorios` inclui `visualizar_relatorio`, `gerar_relatorio`)
+
+### Organização Funcional
+
+1. **Roles de Realm vs. Roles de Client**:
+
+   - **Roles de Realm**: Use para permissões globais (ex: `admin_sistema`)
+   - **Roles de Client**: Use para permissões específicas da aplicação (ex: `app_cadastrar`)
+
+2. **Mapeamento entre Grupos e Roles**:
+
+   - Atribua roles aos grupos para facilitar a gestão
+   - Um usuário herda todas as roles do grupo a que pertence
+
+3. **Hierarquia Organizacional**:
+   - Crie grupos que reflitam a estrutura da empresa
+   - Agrupe roles relacionadas para facilitar a atribuição
+
+### Recomendações Práticas
+
+1. **Padronização de Nomenclatura**:
+
+   - Use separadores consistentes: underscores (\_) ou hífens (-)
+   - Escolha entre CamelCase (`usuarioAdmin`) ou snake_case (`usuario_admin`)
+   - Mantenha todos os nomes em minúsculas ou use um padrão de capitalização consistente
+
+2. **Documentação**:
+
+   - Mantenha um documento com a descrição de todas as roles e grupos
+   - Descreva o propósito de cada role e grupo no campo de descrição do Keycloak
+
+3. **Revisão Periódica**:
+
+   - Avalie regularmente seus grupos e roles para remover duplicações
+   - Verifique permissões não utilizadas e consolide quando necessário
+
+4. **Evite Nomes Ambíguos**:
+   - `pode_editar` é vago → `usuario_editar` é específico
+   - `admin` é amplo → `admin_sistema` ou `admin_usuarios` é específico
+
+Seguindo estas práticas, você conseguirá manter um sistema de permissões no Keycloak que é organizado, escalável e fácil de gerenciar, mesmo à medida que sua organização e requisitos de segurança crescem.
+
 ## Monitoramento e Manutenção
 
 ### Logs do Keycloak
@@ -338,3 +446,230 @@ terraform apply
 2. **Erros de banco de dados**: Verifique as credenciais e conectividade com o PostgreSQL
 3. **Problemas de desempenho**: Ajuste os recursos do Keycloak e PostgreSQL conforme necessário
 4. **Erros de autenticação**: Verifique a configuração dos clientes e redirects
+
+## Configurações Iniciais e Boas Práticas para Clients no Keycloak
+
+### 1. Client para Aplicação React (Frontend)
+
+#### Configuração do Client
+
+1. No seu realm, clique em "Clients" no menu lateral
+2. Clique em "Create client"
+3. Configure o cliente para o React:
+   - Client ID: `react-app`
+   - Client type: `Standard flow`
+   - Habilite "Client authentication": `OFF` (para aplicações SPA)
+   - Valid redirect URIs:
+     ```
+     http://localhost:3000/*
+     https://seu-app-react.com/*
+     ```
+   - Web origins:
+     ```
+     http://localhost:3000
+     https://seu-app-react.com
+     ```
+
+#### Configurações Avançadas
+
+Na aba "Settings":
+
+- Access type: `public`
+- Standard flow enabled: `ON`
+- Direct access grants enabled: `ON`
+- Implicit flow enabled: `OFF` (deprecated)
+- Service accounts enabled: `OFF`
+- OIDC CIBA Grant Enabled: `OFF`
+- OAuth 2.0 Device Authorization Grant Enabled: `OFF`
+
+#### Configuração do React
+
+1. Instale as dependências necessárias:
+
+```bash
+npm install @react-keycloak/web keycloak-js
+# ou
+yarn add @react-keycloak/web keycloak-js
+```
+
+2. Configure o Keycloak no seu aplicativo React:
+
+```typescript
+// src/keycloak.ts
+import Keycloak from "keycloak-js";
+
+const keycloakConfig = {
+  url: "https://keycloak.seu-dominio.com",
+  realm: "seu-realm",
+  clientId: "react-app",
+};
+
+const keycloak = new Keycloak(keycloakConfig);
+
+export default keycloak;
+```
+
+3. Configure o provedor no seu aplicativo:
+
+```typescript
+// src/App.tsx
+import { ReactKeycloakProvider } from "@react-keycloak/web";
+import keycloak from "./keycloak";
+
+function App() {
+  return (
+    <ReactKeycloakProvider authClient={keycloak}>
+      <Router>{/* Suas rotas aqui */}</Router>
+    </ReactKeycloakProvider>
+  );
+}
+```
+
+4. Use o hook para autenticação:
+
+```typescript
+// src/components/Login.tsx
+import { useKeycloak } from "@react-keycloak/web";
+
+function Login() {
+  const { keycloak } = useKeycloak();
+
+  return (
+    <div>
+      {!keycloak.authenticated && (
+        <button onClick={() => keycloak.login()}>Login</button>
+      )}
+      {keycloak.authenticated && (
+        <button onClick={() => keycloak.logout()}>Logout</button>
+      )}
+    </div>
+  );
+}
+```
+
+### 2. Client para Validação de Token (Backend)
+
+#### Configuração do Client
+
+1. No seu realm, clique em "Clients" no menu lateral
+2. Clique em "Create client"
+3. Configure o cliente para validação de token:
+   - Client ID: `token-validator`
+   - Client type: `Bearer-only`
+   - Habilite "Client authentication": `ON`
+   - Valid redirect URIs: `*` (não é necessário para Bearer-only)
+
+#### Configurações Avançadas
+
+Na aba "Settings":
+
+- Access type: `confidential`
+- Standard flow enabled: `OFF`
+- Direct access grants enabled: `OFF`
+- Implicit flow enabled: `OFF`
+- Service accounts enabled: `ON`
+- OIDC CIBA Grant Enabled: `OFF`
+- OAuth 2.0 Device Authorization Grant Enabled: `OFF`
+
+#### Configuração do Backend (NestJS)
+
+1. Instale as dependências necessárias:
+
+```bash
+npm install @nestjs/passport passport passport-keycloak-bearer
+# ou
+yarn add @nestjs/passport passport passport-keycloak-bearer
+```
+
+2. Configure a estratégia de autenticação:
+
+```typescript
+// src/auth/keycloak.strategy.ts
+import { Injectable } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { Strategy } from "passport-keycloak-bearer";
+
+@Injectable()
+export class KeycloakStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      realm: "seu-realm",
+      "auth-server-url": "https://keycloak.seu-dominio.com",
+      "ssl-required": "external",
+      resource: "token-validator",
+      "confidential-port": 0,
+      "bearer-only": true,
+    });
+  }
+
+  async validate(token: string) {
+    // Aqui você pode adicionar lógica adicional de validação
+    return token;
+  }
+}
+```
+
+3. Configure o módulo de autenticação:
+
+```typescript
+// src/auth/auth.module.ts
+import { Module } from "@nestjs/common";
+import { PassportModule } from "@nestjs/passport";
+import { KeycloakStrategy } from "./keycloak.strategy";
+
+@Module({
+  imports: [PassportModule],
+  providers: [KeycloakStrategy],
+  exports: [PassportModule],
+})
+export class AuthModule {}
+```
+
+4. Use o guard para proteger suas rotas:
+
+```typescript
+// src/controllers/protected.controller.ts
+import { Controller, Get, UseGuards } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+
+@Controller("protected")
+export class ProtectedController {
+  @UseGuards(AuthGuard("keycloak"))
+  @Get()
+  getProtectedResource() {
+    return { message: "Recurso protegido" };
+  }
+}
+```
+
+### Boas Práticas para Clients
+
+1. **Segurança**:
+
+   - Use HTTPS em produção
+   - Configure CORS adequadamente
+   - Mantenha os client secrets seguros
+   - Use o tipo de client apropriado para cada caso de uso
+
+2. **Configuração de Roles**:
+
+   - Crie roles específicas para cada client
+   - Use roles compostas para agrupar permissões
+   - Documente o propósito de cada role
+
+3. **Monitoramento**:
+
+   - Ative o logging de eventos do client
+   - Monitore tentativas de login falhas
+   - Configure alertas para atividades suspeitas
+
+4. **Manutenção**:
+
+   - Revise periodicamente as configurações dos clients
+   - Remova clients não utilizados
+   - Mantenha as URLs de redirecionamento atualizadas
+
+5. **Performance**:
+   - Configure timeouts adequados
+   - Use cache quando apropriado
+   - Monitore o uso de recursos
